@@ -1,0 +1,388 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Clock, 
+  BookOpen, 
+  Plus, 
+  X, 
+  Calendar as CalendarIcon, 
+  ChevronLeft, 
+  ChevronRight, 
+  Settings,
+  Trash2,
+  CheckCircle2,
+  RotateCcw,
+  Users,
+  Share2
+} from 'lucide-react';
+
+// --- SERVICE WORKER REGISTRATION ---
+// Esta lógica permite que o browser ofereça a opção "Instalar" no telemóvel
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const swUrl = `data:text/javascript;base64,${btoa(`
+      const CACHE_NAME = 'jw-ministry-v1';
+      self.addEventListener('install', (event) => {
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(['/'])));
+      });
+      self.addEventListener('fetch', (event) => {
+        event.respondWith(caches.match(event.request).then((response) => response || fetch(event.request)));
+      });
+    `)}`;
+    navigator.serviceWorker.register(swUrl).catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+export default function App() {
+  // --- Estados ---
+  const [entries, setEntries] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    const saved = localStorage.getItem('jw_ministry_entries');
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+  const [goal, setGoal] = useState(() => {
+    if (typeof window === 'undefined') return 50;
+    const savedGoal = localStorage.getItem('jw_ministry_goal');
+    return savedGoal ? parseInt(savedGoal) : 50;
+  });
+
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // Estados do formulário de nova entrada
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    hours: '',
+    minutes: '',
+    returnVisits: '',
+    studies: '',
+    notes: ''
+  });
+
+  // --- Efeitos ---
+  useEffect(() => {
+    localStorage.setItem('jw_ministry_entries', JSON.stringify(entries));
+  }, [entries]);
+
+  useEffect(() => {
+    localStorage.setItem('jw_ministry_goal', goal.toString());
+  }, [goal]);
+
+  // --- Cálculos ---
+  const currentMonthEntries = useMemo(() => {
+    return entries.filter(entry => {
+      const entryDate = new Date(entry.date);
+      const localEntryDate = new Date(entryDate.getTime() + entryDate.getTimezoneOffset() * 60000);
+      return localEntryDate.getMonth() === currentDate.getMonth() &&
+             localEntryDate.getFullYear() === currentDate.getFullYear();
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [entries, currentDate]);
+
+  const stats = useMemo(() => {
+    let totalMins = 0;
+    let totalStudies = 0;
+    let totalReturns = 0;
+
+    currentMonthEntries.forEach(entry => {
+      totalMins += (parseInt(entry.hours) || 0) * 60;
+      totalMins += (parseInt(entry.minutes) || 0);
+      totalStudies += (parseInt(entry.studies) || 0);
+      totalReturns += (parseInt(entry.returnVisits) || 0);
+    });
+
+    const hours = Math.floor(totalMins / 60);
+    const minutes = totalMins % 60;
+    const progress = Math.min(((totalMins / 60) / goal) * 100, 100);
+    const remainingMins = (goal * 60) - totalMins;
+    
+    return {
+      hours,
+      minutes,
+      totalMins,
+      progress,
+      totalStudies,
+      totalReturns,
+      remainingHours: remainingMins > 0 ? Math.floor(remainingMins / 60) : 0,
+      remainingMinutes: remainingMins > 0 ? remainingMins % 60 : 0,
+      isGoalReached: remainingMins <= 0
+    };
+  }, [currentMonthEntries, goal]);
+
+  // --- Handlers ---
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const newEntry = {
+      id: Date.now().toString(),
+      ...formData
+    };
+    setEntries(prev => [...prev, newEntry]);
+    setIsAddModalOpen(false);
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      hours: '',
+      minutes: '',
+      returnVisits: '',
+      studies: '',
+      notes: ''
+    });
+  };
+
+  const handleDelete = (id) => {
+    setEntries(prev => prev.filter(entry => entry.id !== id));
+  };
+
+  const formatMonthYear = (date) => {
+    const options = { month: 'long', year: 'numeric' };
+    const formatted = date.toLocaleDateString('pt-BR', options);
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  };
+
+  const formatDateLabel = (dateString) => {
+    const date = new Date(dateString);
+    const localDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+    return localDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', weekday: 'short' });
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex justify-center">
+      {/* Tags de Meta para Mobile PWA */}
+      <style>{`
+        @media safe-area-inset-top {
+          header { padding-top: calc(2.5rem + env(safe-area-inset-top)); }
+        }
+      `}</style>
+
+      <div className="w-full max-w-md bg-slate-50 relative pb-24 shadow-2xl min-h-screen overflow-hidden flex flex-col">
+        
+        {/* --- Cabeçalho --- */}
+        <header className="bg-[#4a6da7] text-white pt-10 pb-6 px-6 rounded-b-3xl shadow-lg relative z-10">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-semibold tracking-tight">Meu Relatório</h1>
+            <div className="flex gap-2">
+                <button 
+                  onClick={() => setIsSettingsModalOpen(true)}
+                  className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+                >
+                  <Settings size={20} />
+                </button>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center bg-white/10 rounded-2xl p-2 mb-6">
+            <button onClick={handlePrevMonth} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+              <ChevronLeft size={24} />
+            </button>
+            <span className="font-medium text-lg tracking-wide capitalize">
+              {formatMonthYear(currentDate)}
+            </span>
+            <button onClick={handleNextMonth} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+              <ChevronRight size={24} />
+            </button>
+          </div>
+
+          {/* Card de Resumo Principal */}
+          <div className="bg-white rounded-2xl p-5 shadow-xl text-slate-800 transform translate-y-12 border border-slate-100">
+            <div className="flex justify-between items-end mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Horas</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-black text-[#4a6da7]">{stats.hours}</span>
+                  <span className="text-lg font-bold text-slate-400">h</span>
+                  <span className="text-4xl font-black text-[#4a6da7] ml-2">{stats.minutes}</span>
+                  <span className="text-lg font-bold text-slate-400">m</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Meta</p>
+                <p className="text-xl font-black text-slate-700">{goal}h</p>
+              </div>
+            </div>
+
+            {/* Barra de Progresso */}
+            <div className="w-full bg-slate-100 rounded-full h-3 mb-2 overflow-hidden">
+              <div 
+                className={`h-3 rounded-full transition-all duration-1000 ease-out ${stats.isGoalReached ? 'bg-emerald-500' : 'bg-[#4a6da7]'}`}
+                style={{ width: `${stats.progress}%` }}
+              ></div>
+            </div>
+            
+            <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tighter">
+              <span className="text-[#4a6da7]">
+                {stats.progress.toFixed(0)}% concluído
+              </span>
+              {stats.isGoalReached ? (
+                <span className="text-emerald-500 flex items-center gap-1">
+                  <CheckCircle2 size={14} /> Alvo Atingido
+                </span>
+              ) : (
+                <span className="text-slate-400">
+                  Faltam {stats.remainingHours}h {stats.remainingMinutes}m
+                </span>
+              )}
+            </div>
+
+            {/* Sub-stats: Revisitas e Estudos */}
+            <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-50">
+                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl">
+                    <div className="bg-blue-100 p-2 rounded-lg text-[#4a6da7]">
+                        <RotateCcw size={18} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Revisitas</p>
+                        <p className="text-lg font-black text-slate-700">{stats.totalReturns}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl">
+                    <div className="bg-purple-100 p-2 rounded-lg text-purple-600">
+                        <BookOpen size={18} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Estudos</p>
+                        <p className="text-lg font-black text-slate-700">{stats.totalStudies}</p>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </header>
+
+        {/* --- Lista de Registros --- */}
+        <main className="flex-1 px-6 pt-16 overflow-y-auto">
+          <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Atividade Diária</h2>
+
+          {currentMonthEntries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-12">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                <CalendarIcon size={24} className="text-slate-300" />
+              </div>
+              <p className="text-slate-400 text-sm font-medium">Nenhum registro este mês.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 pb-20">
+              {currentMonthEntries.map(entry => (
+                <div key={entry.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-slate-50 text-slate-500 w-12 h-12 rounded-xl flex flex-col items-center justify-center border border-slate-100">
+                      <span className="text-[10px] font-bold uppercase">{formatDateLabel(entry.date).split(',')[1]}</span>
+                      <span className="text-lg font-black leading-none">{formatDateLabel(entry.date).split('/')[0]}</span>
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-700">
+                        {entry.hours || '0'}h {entry.minutes ? `${entry.minutes}m` : ''}
+                      </p>
+                      <div className="flex gap-2 mt-0.5">
+                        {entry.returnVisits > 0 && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">R: {entry.returnVisits}</span>}
+                        {entry.studies > 0 && <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-bold">E: {entry.studies}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => handleDelete(entry.id)} className="p-2 text-slate-200 hover:text-red-400 transition-colors">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+
+        {/* Botão Flutuante */}
+        <button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="fixed bottom-8 right-8 w-16 h-16 bg-[#4a6da7] text-white rounded-2xl shadow-xl shadow-blue-900/20 flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-20"
+        >
+          <Plus size={32} strokeWidth={3} />
+        </button>
+
+        {/* --- Modal: Adicionar --- */}
+        {isAddModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+            <div className="bg-white w-full max-w-md sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-20 duration-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Novo Registro</h3>
+                <button onClick={() => setIsAddModalOpen(false)} className="p-2 bg-slate-100 text-slate-400 rounded-full">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Data</label>
+                    <input type="date" name="date" required value={formData.date} onChange={handleInputChange} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-[#4a6da7]" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Horas</label>
+                    <input type="number" name="hours" placeholder="0" value={formData.hours} onChange={handleInputChange} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-center font-black text-xl" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Minutos</label>
+                    <input type="number" name="minutes" placeholder="0" value={formData.minutes} onChange={handleInputChange} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-center font-black text-xl" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Revisitas</label>
+                    <input type="number" name="returnVisits" placeholder="0" value={formData.returnVisits} onChange={handleInputChange} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-center font-black text-xl text-blue-600" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Estudos</label>
+                    <input type="number" name="studies" placeholder="0" value={formData.studies} onChange={handleInputChange} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-center font-black text-xl text-purple-600" />
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full bg-[#4a6da7] text-white font-black text-lg rounded-2xl py-4 shadow-lg shadow-blue-900/20 uppercase tracking-widest mt-4 active:scale-95 transition-transform">
+                  Gravar Atividade
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* --- Modal: Configurações --- */}
+        {isSettingsModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+            <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+              <h3 className="text-xl font-black text-slate-800 uppercase mb-4 text-center">Definições</h3>
+              
+              <div className="space-y-6">
+                <section>
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-2 text-center">Meta de Campanha</p>
+                    <div className="space-y-2">
+                    {[15, 30, 50, 70].map(val => (
+                        <button 
+                        key={val}
+                        onClick={() => setGoal(val)}
+                        className={`w-full py-3 rounded-2xl font-black transition-all ${goal === val ? 'bg-[#4a6da7] text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                        >
+                        {val} Horas {val === 15 || val === 30 ? '(Auxiliar)' : val === 50 ? '(Regular)' : ''}
+                        </button>
+                    ))}
+                    </div>
+                </section>
+
+                <button 
+                  onClick={() => setIsSettingsModalOpen(false)}
+                  className="w-full bg-slate-800 text-white font-black rounded-2xl py-4 uppercase tracking-widest text-sm"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
