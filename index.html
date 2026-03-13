@@ -1,368 +1,294 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  History, 
-  BookOpen, 
-  Clock, 
-  Calendar, 
-  Trash2, 
-  PenTool, 
-  Save,
-  CheckCircle2,
-  AlertCircle
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pioneiro Digital</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React e Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .animate-bounce-short { animation: bounce 1s ease-in-out; }
+        @keyframes bounce { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -10px); } }
+        /* Garantir que o conteúdo não fique escondido atrás do footer em telemóveis */
+        main { padding-bottom: 5rem; }
+    </style>
+</head>
+<body class="bg-[#F4F4F4]">
+    <div id="root"></div>
 
-const App = () => {
-  // Estados Principais
-  const [abaAtiva, setAbaAtiva] = useState('registro');
-  const [meta, setMeta] = useState(30);
-  const [registros, setRegistros] = useState([]);
-  const [textoAtual, setTextoAtual] = useState(0);
-  
-  // Estados para o formulário de entrada
-  const [inputHoras, setInputHoras] = useState('');
-  const [inputData, setInputData] = useState(new Date().toISOString().split('T')[0]);
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-  // Estados para o cronómetro de cartas
-  const [segundosCartas, setSegundosCartas] = useState(0);
-  const [cronometroAtivo, setCronometroAtivo] = useState(false);
-  const [mensagemSucesso, setMensagemSucesso] = useState(false);
-
-  const textosBiblicos = [
-    { ref: "Mateus 24:14", texto: "E estas boas novas do Reino serão pregadas em toda a terra habitada." },
-    { ref: "Mateus 28:19", texto: "Portanto, vão e façam discípulos de pessoas de todas as nações." },
-    { ref: "Atos 20:24", texto: "Dando um testemunho cabal das boas novas da bondade imerecida de Deus." },
-    { ref: "Gálatas 6:9", texto: "Não desistamos de fazer o que é bom, pois colheremos no tempo devido." }
-  ];
-
-  // Configuração de metatags para PWA (Simulado via useEffect)
-  useEffect(() => {
-    document.title = "Pioneiro Digital";
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.setAttribute("content", "#273b5d");
-  }, []);
-
-  // Carregar dados salvos ao iniciar
-  useEffect(() => {
-    const salvos = localStorage.getItem('registrosPioneiro');
-    if (salvos) setRegistros(JSON.parse(salvos));
-    
-    const metaSalva = localStorage.getItem('metaPioneiro');
-    if (metaSalva) setMeta(Number(metaSalva));
-  }, []);
-
-  // Salvar dados sempre que houver mudança
-  useEffect(() => {
-    localStorage.setItem('registrosPioneiro', JSON.stringify(registros));
-    localStorage.setItem('metaPioneiro', meta.toString());
-  }, [registros, meta]);
-
-  // Lógica do Cronómetro de Cartas
-  useEffect(() => {
-    let intervalo = null;
-    if (cronometroAtivo) {
-      intervalo = setInterval(() => setSegundosCartas(s => s + 1), 1000);
-    } else {
-      clearInterval(intervalo);
-    }
-    return () => clearInterval(intervalo);
-  }, [cronometroAtivo]);
-
-  const adicionarRegistro = (horasManuais = null, tipo = 'Campo') => {
-    const horasParaSalvar = horasManuais !== null ? horasManuais : parseFloat(inputHoras);
-    
-    if (isNaN(horasParaSalvar) || horasParaSalvar <= 0) return;
-
-    const novo = {
-      id: Date.now(),
-      data: inputData,
-      horas: horasParaSalvar,
-      tipo: tipo
-    };
-
-    setRegistros([novo, ...registros]);
-    setInputHoras('');
-    
-    // Feedback de sucesso
-    setMensagemSucesso(true);
-    setTimeout(() => setMensagemSucesso(false), 3000);
-  };
-
-  const finalizarCartasESalvar = () => {
-    const horasDecimais = parseFloat(Math.max(0.01, segundosCartas / 3600).toFixed(2));
-    adicionarRegistro(horasDecimais, 'Escrita de Cartas');
-    setCronometroAtivo(false);
-    setSegundosCartas(0);
-  };
-
-  const excluirRegistro = (id) => {
-    setRegistros(registros.filter(r => r.id !== id));
-  };
-
-  const totalHoras = parseFloat(registros.reduce((acc, curr) => acc + curr.horas, 0).toFixed(2));
-  const progresso = (totalHoras / meta) * 100;
-
-  const formatarTempo = (totalSeg) => {
-    const h = Math.floor(totalSeg / 3600);
-    const m = Math.floor((totalSeg % 3600) / 60);
-    const s = totalSeg % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F4F4F4] font-sans text-gray-800 pb-24">
-      {/* Mensagem de Feedback */}
-      {mensagemSucesso && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce">
-          <CheckCircle2 size={20} />
-          <span className="font-bold text-sm text-center">Horas guardadas no relatório!</span>
-        </div>
-      )}
-
-      {/* Header Estilo JW.ORG */}
-      <header className="bg-[#273b5d] text-white p-4 shadow-lg sticky top-0 z-20">
-        <div className="max-w-md mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-lg font-bold">Pioneiro Digital</h1>
-            <p className="text-[10px] opacity-80 uppercase tracking-widest">Serviço de Campo</p>
-          </div>
-          <div className="text-right">
-            <span className="block text-xs opacity-70">Sua Meta</span>
-            <select 
-              value={meta} 
-              onChange={(e) => setMeta(Number(e.target.value))}
-              className="bg-transparent font-bold text-sm outline-none cursor-pointer border-b border-white/30"
-            >
-              <option value={15} className="text-black">15h</option>
-              <option value={30} className="text-black">30h</option>
-              <option value={50} className="text-black">50h</option>
-            </select>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-md mx-auto p-4 space-y-5">
-        
-        {/* Painel de Controle de Horas */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-          <div className="flex justify-between items-end mb-2">
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Total Acumulado</p>
-              <h2 className="text-3xl font-bold text-[#273b5d]">{totalHoras}h</h2>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500 font-medium">Faltam</p>
-              <h2 className="text-xl font-bold text-gray-700">{Math.max(0, (meta - totalHoras).toFixed(2))}h</h2>
-            </div>
-          </div>
-          <div className="w-full bg-gray-100 rounded-full h-3 mb-1 overflow-hidden">
-            <div 
-              className="bg-[#587096] h-3 rounded-full transition-all duration-1000 ease-out" 
-              style={{ width: `${Math.min(100, progresso)}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between items-center">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Progresso do Mês</p>
-            <p className="text-[10px] text-[#273b5d] font-bold uppercase">
-              {Math.round(progresso)}% concluído
-            </p>
-          </div>
-        </div>
-
-        {/* Menu de Navegação */}
-        <div className="flex bg-gray-200 p-1 rounded-lg sticky top-[72px] z-10 shadow-sm">
-          <button 
-            onClick={() => setAbaAtiva('registro')}
-            className={`flex-1 py-2 text-[10px] font-bold rounded-md transition-all ${abaAtiva === 'registro' ? 'bg-white text-[#273b5d] shadow-sm' : 'text-gray-500'}`}
-          >
-            REGISTO MANUAL
-          </button>
-          <button 
-            onClick={() => setAbaAtiva('cartas')}
-            className={`flex-1 py-2 text-[10px] font-bold rounded-md transition-all ${abaAtiva === 'cartas' ? 'bg-white text-[#273b5d] shadow-sm' : 'text-gray-500'}`}
-          >
-            ESCRITA DE CARTAS
-          </button>
-          <button 
-            onClick={() => setAbaAtiva('historico')}
-            className={`flex-1 py-2 text-[10px] font-bold rounded-md transition-all ${abaAtiva === 'historico' ? 'bg-white text-[#273b5d] shadow-sm' : 'text-gray-500'}`}
-          >
-            RELATÓRIO MENSAL
-          </button>
-        </div>
-
-        {/* CONTEÚDO: ABA REGISTRO MANUAL */}
-        {abaAtiva === 'registro' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-              <h3 className="text-[#273b5d] font-bold mb-4 flex items-center gap-2 border-b pb-2">
-                <Plus size={18} /> Adicionar Horas de Campo
-              </h3>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Data</label>
-                  <input 
-                    type="date" 
-                    value={inputData}
-                    onChange={(e) => setInputData(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:border-[#273b5d] outline-none transition-all bg-gray-50"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase">Horas (ex: 1.5)</label>
-                  <input 
-                    type="number" 
-                    step="0.1"
-                    placeholder="0.0"
-                    value={inputHoras}
-                    onChange={(e) => setInputHoras(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:border-[#273b5d] outline-none transition-all bg-gray-50"
-                  />
-                </div>
-              </div>
-              <button 
-                onClick={() => adicionarRegistro(null, 'Campo')}
-                className="w-full bg-[#273b5d] text-white py-4 rounded-lg font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md uppercase tracking-tight"
-              >
-                <Save size={18} /> GUARDAR NO RELATÓRIO
-              </button>
-            </div>
-
-            {/* Texto Bíblico Motivador */}
-            <div className="bg-[#587096] text-white rounded-xl p-5 shadow-sm relative overflow-hidden">
-               <BookOpen className="absolute -right-2 -bottom-2 opacity-10 w-24 h-24" />
-               <p className="italic text-sm mb-3 relative z-10 leading-relaxed font-medium">"{textosBiblicos[textoAtual].texto}"</p>
-               <div className="flex justify-between items-center relative z-10 border-t border-white/20 pt-3">
-                 <span className="font-bold text-xs">— {textosBiblicos[textoAtual].ref}</span>
-                 <button 
-                  onClick={() => setTextoAtual((textoAtual + 1) % textosBiblicos.length)}
-                  className="text-[10px] bg-white/20 px-3 py-1.5 rounded-full uppercase font-bold hover:bg-white/30 transition-colors"
-                 >Próximo Texto</button>
-               </div>
-            </div>
-          </div>
-        )}
-
-        {/* CONTEÚDO: ABA CARTAS */}
-        {abaAtiva === 'cartas' && (
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center animate-in slide-in-from-right duration-300">
-            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-100">
-              <PenTool className="text-[#273b5d]" size={32} />
-            </div>
-            <h3 className="text-xl font-bold text-[#273b5d]">Escrita de Cartas</h3>
-            <p className="text-gray-400 text-sm mb-6">Contabilize o seu tempo de testemunho por cartas.</p>
+        // Componente de Ícone com tratamento de erro e carregamento
+        const Icon = ({ name, size = 18, className = "" }) => {
+            const iconRef = useRef(null);
             
-            <div className={`text-6xl font-mono font-bold mb-8 tracking-tighter transition-colors ${cronometroAtivo ? 'text-green-600' : 'text-gray-800'}`}>
-              {formatarTempo(segundosCartas)}
-            </div>
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
 
-            <div className="space-y-4">
-              <div className="flex justify-center gap-4">
-                <button 
-                  onClick={() => setCronometroAtivo(!cronometroAtivo)}
-                  className={`flex-1 py-5 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 ${cronometroAtivo ? 'bg-orange-500' : 'bg-green-600'}`}
-                >
-                  {cronometroAtivo ? 'PAUSAR' : 'INICIAR SERVIÇO'}
-                </button>
-                <button 
-                  onClick={() => {setCronometroAtivo(false); setSegundosCartas(0);}}
-                  className="px-6 bg-gray-100 text-gray-500 rounded-xl font-bold hover:bg-gray-200 transition-colors"
-                >
-                  ZERAR
-                </button>
-              </div>
-              
-              <div className="pt-4 border-t border-gray-50 mt-4">
-                <button 
-                  disabled={segundosCartas === 0}
-                  onClick={finalizarCartasESalvar}
-                  className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all ${
-                    segundosCartas > 0 
-                    ? 'bg-[#273b5d] text-white active:scale-95' 
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  <Save size={18} /> 
-                  {segundosCartas > 0 
-                    ? `FINALIZAR E GUARDAR ${(segundosCartas/3600).toFixed(2)}h` 
-                    : 'REGISTAR TEMPO ATUAL'}
-                </button>
-                <p className="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-widest">O tempo será somado ao total acumulado</p>
-              </div>
-            </div>
-          </div>
-        )}
+            return <i data-lucide={name} style={{ width: size, height: size }} className={`inline-block ${className}`}></i>;
+        };
 
-        {/* CONTEÚDO: ABA HISTÓRICO */}
-        {abaAtiva === 'historico' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in slide-in-from-bottom duration-300">
-            <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-              <h3 className="font-bold text-[#273b5d] flex items-center gap-2">
-                <History size={18} /> Histórico de Atividades
-              </h3>
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] font-black text-[#587096] uppercase tracking-tighter">Total: {totalHoras}h</span>
-                <span className="text-[9px] text-gray-400 uppercase font-bold">{registros.length} entradas</span>
-              </div>
-            </div>
-            <div className="divide-y divide-gray-100 max-h-[450px] overflow-y-auto">
-              {registros.length === 0 ? (
-                <div className="p-16 text-center text-gray-400">
-                  <Calendar className="mx-auto mb-4 opacity-10" size={48} />
-                  <p className="text-sm font-bold text-gray-300">Sem registos este mês.</p>
+        const App = () => {
+            const [abaAtiva, setAbaAtiva] = useState('registro');
+            const [meta, setMeta] = useState(30);
+            const [registros, setRegistros] = useState([]);
+            const [textoAtual, setTextoAtual] = useState(0);
+            const [inputHoras, setInputHoras] = useState('');
+            const [inputData, setInputData] = useState(new Date().toISOString().split('T')[0]);
+            const [segundosCartas, setSegundosCartas] = useState(0);
+            const [cronometroAtivo, setCronometroAtivo] = useState(false);
+            const [mensagemSucesso, setMensagemSucesso] = useState(false);
+
+            const textosBiblicos = [
+                { ref: "Mateus 24:14", texto: "E estas boas novas do Reino serão pregadas em toda a terra habitada." },
+                { ref: "Mateus 28:19", texto: "Portanto, vão e façam discípulos de pessoas de todas as nações." },
+                { ref: "Atos 20:24", texto: "Dando um testemunho cabal das boas novas da bondade imerecida de Deus." },
+                { ref: "Gálatas 6:9", texto: "Não desistamos de fazer o que é bom, pois colheremos no tempo devido." }
+            ];
+
+            // Inicialização segura
+            useEffect(() => {
+                try {
+                    const salvos = localStorage.getItem('registrosPioneiro');
+                    if (salvos) setRegistros(JSON.parse(salvos));
+                    const metaSalva = localStorage.getItem('metaPioneiro');
+                    if (metaSalva) setMeta(Number(metaSalva));
+                } catch (e) {
+                    console.error("Erro ao carregar localStorage", e);
+                }
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('registrosPioneiro', JSON.stringify(registros));
+                localStorage.setItem('metaPioneiro', meta.toString());
+            }, [registros, meta]);
+
+            useEffect(() => {
+                let intervalo = null;
+                if (cronometroAtivo) {
+                    intervalo = setInterval(() => setSegundosCartas(s => s + 1), 1000);
+                } else {
+                    clearInterval(intervalo);
+                }
+                return () => clearInterval(intervalo);
+            }, [cronometroAtivo]);
+
+            const adicionarRegistro = (horasManuais = null, tipo = 'Campo') => {
+                const valor = horasManuais !== null ? horasManuais : parseFloat(inputHoras);
+                if (isNaN(valor) || valor <= 0) return;
+                
+                const novo = { id: Date.now(), data: inputData, horas: valor, tipo: tipo };
+                setRegistros(prev => [novo, ...prev]);
+                setInputHoras('');
+                setMensagemSucesso(true);
+                setTimeout(() => setMensagemSucesso(false), 3000);
+            };
+
+            const finalizarCartasESalvar = () => {
+                const horasDecimais = parseFloat(Math.max(0.01, segundosCartas / 3600).toFixed(2));
+                adicionarRegistro(horasDecimais, 'Escrita de Cartas');
+                setCronometroAtivo(false);
+                setSegundosCartas(0);
+            };
+
+            const excluirRegistro = (id) => {
+                setRegistros(prev => prev.filter(r => r.id !== id));
+            };
+
+            const totalHoras = parseFloat(registros.reduce((acc, curr) => acc + curr.horas, 0).toFixed(2));
+            const progresso = (totalHoras / meta) * 100;
+
+            const formatarTempo = (totalSeg) => {
+                const h = Math.floor(totalSeg / 3600);
+                const m = Math.floor((totalSeg % 3600) / 60);
+                const s = totalSeg % 60;
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+
+            return (
+                <div className="min-h-screen">
+                    {mensagemSucesso && (
+                        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce-short">
+                            <Icon name="check-circle" />
+                            <span className="font-bold text-sm">Horas guardadas!</span>
+                        </div>
+                    )}
+
+                    <header className="bg-[#273b5d] text-white p-4 shadow-lg sticky top-0 z-20">
+                        <div className="max-w-md mx-auto flex justify-between items-center">
+                            <div>
+                                <h1 className="text-lg font-bold">Pioneiro Digital</h1>
+                                <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Relatório Mensal</p>
+                            </div>
+                            <div className="text-right">
+                                <span className="block text-[10px] opacity-70 uppercase font-bold">Meta</span>
+                                <select 
+                                    value={meta} 
+                                    onChange={(e) => setMeta(Number(e.target.value))}
+                                    className="bg-transparent font-bold text-sm outline-none border-b border-white/30"
+                                >
+                                    <option value={15} className="text-black">15h</option>
+                                    <option value={30} className="text-black">30h</option>
+                                    <option value={50} className="text-black">50h</option>
+                                </select>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-md mx-auto p-4 space-y-5">
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                            <div className="flex justify-between items-end mb-3">
+                                <div>
+                                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Total Acumulado</p>
+                                    <h2 className="text-4xl font-black text-[#273b5d]">{totalHoras}h</h2>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Restante</p>
+                                    <h2 className="text-xl font-bold text-gray-600">{Math.max(0, (meta - totalHoras).toFixed(2))}h</h2>
+                                </div>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-3.5 mb-2 overflow-hidden">
+                                <div className="bg-[#587096] h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, progresso)}%` }}></div>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tighter">
+                                <p className="text-gray-400">Progresso do Objetivo</p>
+                                <p className="text-[#273b5d]">{Math.round(progresso)}% concluído</p>
+                            </div>
+                        </div>
+
+                        <div className="flex bg-gray-200 p-1 rounded-xl sticky top-[76px] z-10 shadow-inner">
+                            <button onClick={() => setAbaAtiva('registro')} className={`flex-1 py-2.5 text-[10px] font-black rounded-lg transition-all ${abaAtiva === 'registro' ? 'bg-white text-[#273b5d] shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>REGISTO</button>
+                            <button onClick={() => setAbaAtiva('cartas')} className={`flex-1 py-2.5 text-[10px] font-black rounded-lg transition-all ${abaAtiva === 'cartas' ? 'bg-white text-[#273b5d] shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>CARTAS</button>
+                            <button onClick={() => setAbaAtiva('historico')} className={`flex-1 py-2.5 text-[10px] font-black rounded-lg transition-all ${abaAtiva === 'historico' ? 'bg-white text-[#273b5d] shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>HISTÓRICO</button>
+                        </div>
+
+                        {abaAtiva === 'registro' && (
+                            <div className="space-y-4 animate-in fade-in duration-300">
+                                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                    <h3 className="text-[#273b5d] font-bold mb-5 flex items-center gap-2 border-b border-gray-50 pb-3 uppercase text-xs tracking-widest">
+                                        <Icon name="plus-circle" /> Entrada Manual
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4 mb-5">
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Data do Serviço</label>
+                                            <input type="date" value={inputData} onChange={(e) => setInputData(e.target.value)} className="w-full border border-gray-100 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-[#273b5d]/10 focus:border-[#273b5d] transition-all"/>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Horas Realizadas</label>
+                                            <input type="number" step="0.1" placeholder="0.0" value={inputHoras} onChange={(e) => setInputHoras(e.target.value)} className="w-full border border-gray-100 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:ring-2 focus:ring-[#273b5d]/10 focus:border-[#273b5d] transition-all"/>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => adicionarRegistro()} className="w-full bg-[#273b5d] text-white py-4 rounded-xl font-black flex items-center justify-center gap-3 active:scale-[0.98] transition-all shadow-lg uppercase text-xs tracking-widest">
+                                        <Icon name="save" size={20} /> Guardar Horas
+                                    </button>
+                                </div>
+                                
+                                <div className="bg-[#587096] text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+                                    <Icon name="quote" size={80} className="absolute -right-4 -bottom-4 opacity-10" />
+                                    <p className="italic text-sm mb-4 relative z-10 leading-relaxed font-medium">"{textosBiblicos[textoAtual].texto}"</p>
+                                    <div className="flex justify-between items-center relative z-10 border-t border-white/20 pt-4">
+                                        <span className="font-bold text-xs opacity-90 tracking-tight">{textosBiblicos[textoAtual].ref}</span>
+                                        <button onClick={() => setTextoAtual((textoAtual + 1) % textosBiblicos.length)} className="text-[9px] bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full font-black uppercase tracking-tighter transition-colors">Novo Texto</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {abaAtiva === 'cartas' && (
+                            <div className="bg-white rounded-2xl p-10 shadow-sm border border-gray-100 text-center animate-in zoom-in-95 duration-300">
+                                <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-100 shadow-inner">
+                                    <Icon name="pen-tool" size={36} className="text-[#273b5d]" />
+                                </div>
+                                <h3 className="text-xl font-black text-[#273b5d] mb-2 uppercase tracking-tight">Modo Cartas</h3>
+                                <p className="text-gray-400 text-xs mb-8 font-medium">Cronometre o seu testemunho por escrito.</p>
+                                
+                                <div className={`text-6xl font-mono font-black mb-10 tracking-tighter transition-all ${cronometroAtivo ? 'text-green-600 scale-110' : 'text-gray-800'}`}>
+                                    {formatarTempo(segundosCartas)}
+                                </div>
+
+                                <div className="space-y-4 max-w-xs mx-auto">
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setCronometroAtivo(!cronometroAtivo)} className={`flex-[2] py-5 rounded-2xl font-black text-white shadow-xl active:scale-95 transition-all uppercase text-xs tracking-widest ${cronometroAtivo ? 'bg-orange-500' : 'bg-green-600'}`}>
+                                            {cronometroAtivo ? 'Pausar' : 'Começar'}
+                                        </button>
+                                        <button onClick={() => {setCronometroAtivo(false); setSegundosCartas(0);}} className="flex-1 bg-gray-100 text-gray-500 rounded-2xl font-black text-[10px] uppercase hover:bg-gray-200 transition-colors">Zerar</button>
+                                    </div>
+                                    <button 
+                                        disabled={segundosCartas === 0} 
+                                        onClick={finalizarCartasESalvar} 
+                                        className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-md transition-all uppercase text-xs tracking-widest ${segundosCartas > 0 ? 'bg-[#273b5d] text-white active:scale-95 shadow-[#273b5d]/20' : 'bg-gray-100 text-gray-300'}`}
+                                    >
+                                        <Icon name="check" size={20} /> Finalizar Serviço
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {abaAtiva === 'historico' && (
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in duration-300">
+                                <div className="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                                    <h3 className="font-black text-[#273b5d] flex items-center gap-2 text-[10px] uppercase tracking-widest"><Icon name="calendar" size={16}/> Histórico do Mês</h3>
+                                    <span className="text-[10px] font-black text-[#587096] bg-blue-50 px-3 py-1 rounded-full uppercase">Soma: {totalHoras}h</span>
+                                </div>
+                                <div className="divide-y divide-gray-50 max-h-[450px] overflow-y-auto">
+                                    {registros.length === 0 ? (
+                                        <div className="p-20 text-center text-gray-300">
+                                            <Icon name="inbox" size={40} className="mx-auto mb-3 opacity-20" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest">Sem registos</p>
+                                        </div>
+                                    ) : (
+                                        registros.map(reg => (
+                                            <div key={reg.id} className="p-5 flex justify-between items-center hover:bg-gray-50/80 transition-colors">
+                                                <div className="flex gap-4 items-center">
+                                                    <div className={`w-3 h-3 rounded-full shadow-sm ${reg.tipo === 'Escrita de Cartas' ? 'bg-orange-400' : 'bg-[#273b5d]'}`}></div>
+                                                    <div>
+                                                        <p className="font-bold text-sm text-gray-800">{new Date(reg.data + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'long' })}</p>
+                                                        <p className="text-[9px] text-gray-400 uppercase font-black tracking-tighter">{reg.tipo}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-5">
+                                                    <span className="font-black text-[#273b5d] text-sm">+{reg.horas.toFixed(2)}h</span>
+                                                    <button onClick={() => { if(confirm("Apagar este registo?")) excluirRegistro(reg.id) }} className="text-gray-300 hover:text-red-500 transition-colors">
+                                                        <Icon name="trash-2" size={18}/>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                {registros.length > 0 && (
+                                    <div className="p-4 bg-gray-50/50 text-center">
+                                        <button onClick={() => { if(confirm("Limpar todo o histórico?")) setRegistros([]); }} className="text-[9px] text-red-400 font-black uppercase tracking-widest hover:text-red-600 transition-colors">Limpar Mês</button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </main>
+
+                    <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 p-5 text-center z-30">
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.3em]">Mantenha o seu foco</p>
+                    </footer>
                 </div>
-              ) : (
-                registros.map(reg => (
-                  <div key={reg.id} className="p-4 flex justify-between items-center hover:bg-gray-50 transition-colors group">
-                    <div className="flex gap-3 items-center">
-                      <div className={`w-2.5 h-2.5 rounded-full ${reg.tipo === 'Escrita de Cartas' ? 'bg-orange-400' : 'bg-[#273b5d]'}`}></div>
-                      <div>
-                        <p className="font-bold text-sm text-gray-700">{new Date(reg.data + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
-                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">{reg.tipo}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-black text-[#273b5d] bg-blue-50 border border-blue-100 px-3 py-1 rounded-full text-xs min-w-[65px] text-center shadow-sm">
-                        +{reg.horas.toFixed(2)}h
-                      </span>
-                      <button 
-                        onClick={() => excluirRegistro(reg.id)}
-                        className="text-gray-200 hover:text-red-500 transition-colors p-1"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            {registros.length > 0 && (
-              <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
-                 <button 
-                  onClick={() => {
-                    if(confirm("Deseja realmente limpar todo o relatório deste mês?")) {
-                      setRegistros([]);
-                    }
-                  }}
-                  className="text-[10px] text-red-400 font-bold uppercase hover:underline"
-                 >Limpar todo o mês</button>
-              </div>
-            )}
-          </div>
-        )}
+            );
+        };
 
-      </main>
-
-      {/* Rodapé Fixo */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 text-center z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
-        <div className="max-w-md mx-auto">
-          <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.25em]">
-            "Seja zeloso nas boas obras"
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-};
-
-export default App;
+        // Renderização garantida após carregamento do DOM
+        window.addEventListener('load', () => {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+        });
+    </script>
+</body>
+</html>
